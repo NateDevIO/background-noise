@@ -125,9 +125,18 @@
     animation: glow 3s ease-in-out infinite;
   }
 
+  .noise-option.loading .dot {
+    animation: loading-pulse 0.8s ease-in-out infinite;
+  }
+
   @keyframes glow {
     0%, 100% { box-shadow: 0 0 20px -4px var(--accent), 0 0 40px -8px var(--accent); }
     50% { box-shadow: 0 0 30px -2px var(--accent), 0 0 60px -4px var(--accent); }
+  }
+
+  @keyframes loading-pulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.5); }
   }
 
   .dot {
@@ -441,53 +450,57 @@
 
 <script>
 // ── Sound config ──
+// Colors: generated algorithmically (dur = buffer seconds)
+// Nature/Scenes/ASMR: real recordings from Moodist (MIT, Pixabay/CC0 audio)
 const SOUNDS = {
-  brown:  { dur:4,  rgb:[184,135,94]  },
-  white:  { dur:4,  rgb:[212,207,200] },
-  pink:   { dur:4,  rgb:[201,135,159] },
-  green:  { dur:4,  rgb:[122,170,110] },
-  blue:   { dur:4,  rgb:[110,153,184] },
-  violet: { dur:4,  rgb:[141,127,181] },
-  gray:   { dur:4,  rgb:[138,138,138] },
-  rain:   { dur:6,  rgb:[107,143,163] },
-  thunderstorm: { dur:18, rgb:[92,107,138] },
-  ocean:  { dur:16, rgb:[91,157,173]  },
-  wind:   { dur:8,  rgb:[143,170,157] },
-  stream: { dur:6,  rgb:[110,170,181] },
-  crickets:{ dur:10, rgb:[110,122,94] },
-  campfire:{ dur:8,  rgb:[196,120,74] },
-  fan:    { dur:4,  rgb:[138,144,153] },
-  airplane:{ dur:4, rgb:[122,133,153] },
-  train:  { dur:6,  rgb:[160,140,110] },
-  laundromat:{ dur:8, rgb:[122,150,160] },
-  purr:   { dur:8,  rgb:[196,154,122] },
-  heartbeat:{ dur:8, rgb:[181,114,114] },
-  keyboard:{ dur:8, rgb:[154,154,128] },
+  // Generated (color noises + heartbeat)
+  brown:  { dur:4, rgb:[184,135,94] },
+  white:  { dur:4, rgb:[212,207,200] },
+  pink:   { dur:4, rgb:[201,135,159] },
+  green:  { dur:4, rgb:[122,170,110] },
+  blue:   { dur:4, rgb:[110,153,184] },
+  violet: { dur:4, rgb:[141,127,181] },
+  gray:   { dur:4, rgb:[138,138,138] },
+  heartbeat: { dur:8, rgb:[181,114,114] },
+  // File-based (real recordings served from /sounds/)
+  rain:         { url: 'sounds/rain.mp3',         rgb:[107,143,163] },
+  thunderstorm: { url: 'sounds/thunderstorm.mp3', rgb:[92,107,138] },
+  ocean:        { url: 'sounds/ocean.mp3',        rgb:[91,157,173] },
+  wind:         { url: 'sounds/wind.mp3',         rgb:[143,170,157] },
+  stream:       { url: 'sounds/stream.mp3',       rgb:[110,170,181] },
+  crickets:     { url: 'sounds/crickets.mp3',     rgb:[110,122,94] },
+  campfire:     { url: 'sounds/campfire.mp3',     rgb:[196,120,74] },
+  fan:          { url: 'sounds/fan.mp3',          rgb:[138,144,153] },
+  airplane:     { url: 'sounds/airplane.mp3',     rgb:[122,133,153] },
+  train:        { url: 'sounds/train.mp3',        rgb:[160,140,110] },
+  laundromat:   { url: 'sounds/laundromat.mp3',   rgb:[122,150,160] },
+  purr:         { url: 'sounds/purr.mp3',         rgb:[196,154,122] },
+  keyboard:     { url: 'sounds/keyboard.mp3',     rgb:[154,154,128] },
 };
 
-// ── Helpers ──
-function whiteN(buf) { for (let i=0;i<buf.length;i++) buf[i]=Math.random()*2-1; }
+// ── Noise generators (color noises only) ──
+function whiteN(buf) { for(let i=0;i<buf.length;i++) buf[i]=Math.random()*2-1; }
 function pinkN(buf) {
   let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
-  for (let i=0;i<buf.length;i++) {
+  for(let i=0;i<buf.length;i++){
     const w=Math.random()*2-1;
-    b0=.99886*b0+w*.0555179; b1=.99332*b1+w*.0750759;
-    b2=.96900*b2+w*.1538520; b3=.86650*b3+w*.3104856;
-    b4=.55000*b4+w*.5329522; b5=-.7616*b5-w*.0168980;
+    b0=.99886*b0+w*.0555179;b1=.99332*b1+w*.0750759;
+    b2=.96900*b2+w*.1538520;b3=.86650*b3+w*.3104856;
+    b4=.55000*b4+w*.5329522;b5=-.7616*b5-w*.0168980;
     buf[i]=(b0+b1+b2+b3+b4+b5+b6+w*.5362)*.11;
     b6=w*.115926;
   }
 }
 function brownN(buf) {
   let last=0;
-  for (let i=0;i<buf.length;i++) { last=(last+.02*(Math.random()*2-1))/1.02; buf[i]=last*3.5; }
+  for(let i=0;i<buf.length;i++){last=(last+.02*(Math.random()*2-1))/1.02;buf[i]=last*3.5;}
 }
 function biquad(buf,sr,type,freq,Q) {
-  const w=2*Math.PI*freq/sr, s=Math.sin(w), c=Math.cos(w), a=s/(2*Q);
+  const w=2*Math.PI*freq/sr,s=Math.sin(w),c=Math.cos(w),a=s/(2*Q);
   let b0,b1,b2;
   if(type==='lp'){b0=(1-c)/2;b1=1-c;b2=(1-c)/2;}
   else if(type==='hp'){b0=(1+c)/2;b1=-(1+c);b2=(1+c)/2;}
-  else{b0=a;b1=0;b2=-a;} // bp
+  else{b0=a;b1=0;b2=-a;}
   const a0=1+a,a1=-2*c,a2=1-a;
   let x1=0,x2=0,y1=0,y2=0;
   for(let i=0;i<buf.length;i++){
@@ -497,263 +510,37 @@ function biquad(buf,sr,type,freq,Q) {
   }
 }
 function norm(buf,peak=.75) {
-  let mx=0;
-  for(let i=0;i<buf.length;i++) mx=Math.max(mx,Math.abs(buf[i]));
+  let mx=0;for(let i=0;i<buf.length;i++)mx=Math.max(mx,Math.abs(buf[i]));
   if(mx>0){const s=peak/mx;for(let i=0;i<buf.length;i++)buf[i]*=s;}
 }
-function mix(dst,src,amp) { for(let i=0;i<dst.length;i++) dst[i]+=src[i]*amp; }
 
-// ── Generators ──
 const gen = {
-  // Colors
-  brown(b)  { brownN(b); },
-  white(b)  { whiteN(b); },
-  pink(b)   { pinkN(b); },
-  green(b,sr){ whiteN(b); biquad(b,sr,'bp',500,.7); norm(b); },
-  blue(b) {
-    let last=0;
-    for(let i=0;i<b.length;i++){const w=Math.random()*2-1;b[i]=w-last;last=w;}
-    norm(b);
-  },
-  violet(b) {
-    let l1=0,l2=0;
-    for(let i=0;i<b.length;i++){const w=Math.random()*2-1;const d=w-l1;b[i]=d-l2;l2=d;l1=w;}
-    norm(b);
-  },
-  gray(b,sr) {
-    whiteN(b);
-    const s=new Float32Array(b.length);
+  brown(b) { brownN(b); },
+  white(b) { whiteN(b); },
+  pink(b)  { pinkN(b); },
+  green(b,sr){ whiteN(b);biquad(b,sr,'bp',500,.7);norm(b); },
+  blue(b){ let last=0;for(let i=0;i<b.length;i++){const w=Math.random()*2-1;b[i]=w-last;last=w;}norm(b); },
+  violet(b){ let l1=0,l2=0;for(let i=0;i<b.length;i++){const w=Math.random()*2-1;const d=w-l1;b[i]=d-l2;l2=d;l1=w;}norm(b); },
+  gray(b,sr){
+    whiteN(b);const s=new Float32Array(b.length);
     const w0=2*Math.PI*1000/sr,al=Math.sin(w0),co=Math.cos(w0);
     const a0=1+al,b0n=al/a0,b2n=-al/a0,a1n=-2*co/a0,a2n=(1-al)/a0;
     let x1=0,x2=0,y1=0,y2=0;
     for(let i=0;i<b.length;i++){s[i]=b0n*b[i]+b2n*x2-a1n*y1-a2n*y2;x2=x1;x1=b[i];y2=y1;y1=s[i];}
     for(let i=0;i<b.length;i++) b[i]=b[i]*.7+s[i]*.5;
   },
-
-  // Nature
-  rain(b,sr) {
-    pinkN(b);
-    biquad(b,sr,'hp',800,.7);
-    for(let i=0;i<b.length;i++) b[i]*=.5;
-    for(let i=0;i<b.length;i++){
-      if(Math.random()<300/sr){
-        const amp=.1+Math.random()*.25;
-        const len=Math.floor(sr*(.001+Math.random()*.003));
-        for(let j=0;j<len&&i+j<b.length;j++)
-          b[i+j]+=amp*(1-j/len)*(Math.random()*2-1);
-      }
-    }
-    norm(b,.7);
-  },
-
-  thunderstorm(b,sr) {
-    // Heavy rain
-    pinkN(b); biquad(b,sr,'hp',600,.5);
-    for(let i=0;i<b.length;i++) b[i]*=.4;
-    for(let i=0;i<b.length;i++){
-      if(Math.random()<500/sr){
-        const amp=.12+Math.random()*.35;
-        const len=Math.floor(sr*(.001+Math.random()*.004));
-        for(let j=0;j<len&&i+j<b.length;j++)
-          b[i+j]+=amp*(1-j/len)*(Math.random()*2-1);
-      }
-    }
-    // Thunder rumbles
-    const n=1+Math.floor(Math.random()*2);
-    for(let t=0;t<n;t++){
-      const pos=Math.floor(sr*(3+Math.random()*(b.length/sr-6)));
-      const dur=Math.floor(sr*(2.5+Math.random()*2.5));
-      for(let i=0;i<dur&&pos+i<b.length;i++){
-        const env=Math.exp(-i/(sr*1.2));
-        b[pos+i]+=env*(.5*(Math.random()*2-1)+.3*Math.sin(2*Math.PI*(40+Math.random()*40)*i/sr));
-      }
-    }
-    norm(b,.7);
-  },
-
-  ocean(b,sr) {
-    brownN(b);
-    const waveP=8*sr;
-    for(let i=0;i<b.length;i++){
-      const phase=(i%waveP)/waveP;
-      const env=Math.pow(Math.sin(Math.PI*phase),1.5);
-      b[i]=b[i]*(.12+.88*env)+env*.25*(Math.random()*2-1);
-    }
-    biquad(b,sr,'lp',1800,.5);
-    norm(b,.7);
-  },
-
-  wind(b,sr) {
-    whiteN(b); biquad(b,sr,'lp',700,.6);
-    for(let i=0;i<b.length;i++){
-      const t=i/sr;
-      b[i]*=.35+.65*(.5+.3*Math.sin(2*Math.PI*.13*t)+.2*Math.sin(2*Math.PI*.21*t+1.7));
-    }
-    norm(b,.65);
-  },
-
-  stream(b,sr) {
-    whiteN(b); biquad(b,sr,'bp',2200,.4);
-    for(let i=0;i<b.length;i++){
-      const t=i/sr;
-      b[i]*=.6+.4*(.5+.3*Math.sin(2*Math.PI*.7*t)+.2*Math.sin(2*Math.PI*1.3*t+2));
-      if(Math.random()<25/sr){
-        const f=800+Math.random()*2500,len=Math.floor(sr*.008);
-        for(let j=0;j<len&&i+j<b.length;j++)
-          b[i+j]+=.15*Math.sin(2*Math.PI*f*j/sr)*(1-j/len);
-      }
-    }
-    norm(b,.65);
-  },
-
-  crickets(b,sr) {
-    brownN(b);
-    for(let i=0;i<b.length;i++) b[i]*=.04;
-    const bugs=[
-      {f:4200,int:.8,clen:.06,ph:0},
-      {f:3800,int:1.3,clen:.05,ph:.35},
-      {f:4600,int:.6,clen:.04,ph:.7},
-      {f:3400,int:1.6,clen:.07,ph:.15},
-    ];
-    for(const c of bugs){
-      const chirpS=Math.floor(c.clen*sr),intS=Math.floor(c.int*sr),pulses=4;
-      const pLen=Math.floor(chirpS/pulses);
-      let pos=Math.floor(c.ph*intS);
-      while(pos<b.length){
-        for(let p=0;p<pulses;p++){
-          const s=pos+p*pLen;
-          const gateLen=Math.floor(pLen*.7);
-          for(let j=0;j<gateLen&&s+j<b.length;j++){
-            const env=.5*(1-Math.cos(2*Math.PI*j/gateLen));
-            b[s+j]+=env*.2*Math.sin(2*Math.PI*c.f*j/sr);
-          }
-        }
-        pos+=intS+Math.floor((Math.random()-.5)*sr*.15);
-      }
-    }
-    norm(b,.55);
-  },
-
-  // Scenes
-  campfire(b,sr) {
-    brownN(b);
-    for(let i=0;i<b.length;i++) b[i]*=.12;
-    for(let i=0;i<b.length;i++){
-      if(Math.random()<12/sr){
-        const pop=Math.random()<.12;
-        const amp=pop?(.3+Math.random()*.5):(.08+Math.random()*.25);
-        const len=Math.floor(sr*(pop?.02+Math.random()*.025:.002+Math.random()*.008));
-        const f=pop?200+Math.random()*300:1200+Math.random()*3000;
-        for(let j=0;j<len&&i+j<b.length;j++){
-          const env=Math.exp(-j/(len*.3));
-          b[i+j]+=amp*env*(.6*Math.sin(2*Math.PI*f*j/sr)+.4*(Math.random()*2-1));
-        }
-      }
-    }
-    norm(b,.6);
-  },
-
-  fan(b,sr) {
-    whiteN(b); biquad(b,sr,'bp',250,.4);
-    for(let i=0;i<b.length;i++) b[i]*=.98+.02*Math.sin(2*Math.PI*3*i/sr);
-    norm(b,.7);
-  },
-
-  airplane(b,sr) {
-    brownN(b); biquad(b,sr,'lp',500,.5);
-    for(let i=0;i<b.length;i++)
-      b[i]=b[i]*.7+.08*Math.sin(2*Math.PI*85*i/sr)+.04*Math.sin(2*Math.PI*170*i/sr);
-    norm(b,.7);
-  },
-
-  train(b,sr) {
-    brownN(b); biquad(b,sr,'lp',800,.6);
-    for(let i=0;i<b.length;i++) b[i]*=.35;
-    // Subtle sway
-    for(let i=0;i<b.length;i++) b[i]*=.9+.1*Math.sin(2*Math.PI*.4*i/sr);
-    // Clickety-clack
-    const ci=Math.floor(sr*1.2);
-    for(let pos=Math.floor(sr*.2);pos<b.length;pos+=ci){
-      for(let c=0;c<2;c++){
-        const cs=pos+c*Math.floor(sr*.15);
-        const cl=Math.floor(sr*.012);
-        const amp=c===0?.45:.3;
-        for(let j=0;j<cl&&cs+j<b.length;j++)
-          b[cs+j]+=amp*Math.exp(-j/(cl*.2))*(Math.random()*2-1);
-      }
-    }
-    norm(b,.65);
-  },
-
-  laundromat(b,sr) {
-    // Motor hum
-    for(let i=0;i<b.length;i++)
-      b[i]=.12*Math.sin(2*Math.PI*60*i/sr)+.06*Math.sin(2*Math.PI*120*i/sr)+.03*Math.sin(2*Math.PI*180*i/sr);
-    // Water agitation
-    const w=new Float32Array(b.length);
-    whiteN(w); biquad(w,sr,'bp',1200,.5);
-    for(let i=0;i<b.length;i++){
-      const t=i/sr;
-      const ag=.25+.75*Math.pow(Math.max(0,Math.sin(2*Math.PI*.3*t)),2);
-      b[i]+=w[i]*.25*ag;
-    }
-    // Gentle tumble rhythm
-    const tumble=new Float32Array(b.length);
-    whiteN(tumble); biquad(tumble,sr,'lp',300,.8);
-    for(let i=0;i<b.length;i++){
-      const t=i/sr;
-      b[i]+=tumble[i]*.1*(.5+.5*Math.sin(2*Math.PI*.8*t));
-    }
-    norm(b,.6);
-  },
-
-  // ASMR
-  purr(b,sr) {
-    for(let i=0;i<b.length;i++){
-      const t=i/sr;
-      const breath=.5+.5*Math.sin(2*Math.PI*.35*t);
-      const p=Math.sign(Math.sin(2*Math.PI*25*t));
-      b[i]=p*breath*.3+(Math.random()*2-1)*.04;
-    }
-    biquad(b,sr,'lp',150,.7);
-    norm(b,.55);
-  },
-
-  heartbeat(b,sr) {
+  heartbeat(b,sr){
     for(let i=0;i<b.length;i++) b[i]=(Math.random()*2-1)*.008;
     const bi=Math.floor(sr*1.0);
     for(let pos=Math.floor(sr*.1);pos<b.length;pos+=bi){
-      // Lub
       const lubL=Math.floor(sr*.1);
       for(let j=0;j<lubL&&pos+j<b.length;j++)
         b[pos+j]+=.8*Math.exp(-j/(lubL*.25))*Math.sin(2*Math.PI*50*j/sr);
-      // Dub
       const ds=pos+Math.floor(sr*.22),dubL=Math.floor(sr*.08);
       for(let j=0;j<dubL&&ds+j<b.length;j++)
         b[ds+j]+=.5*Math.exp(-j/(dubL*.2))*Math.sin(2*Math.PI*65*j/sr);
     }
-    biquad(b,sr,'lp',200,.7);
-    norm(b,.65);
-  },
-
-  keyboard(b,sr) {
-    whiteN(b);
-    for(let i=0;i<b.length;i++) b[i]*=.015;
-    for(let i=0;i<b.length;i++){
-      if(Math.random()<5/sr){
-        const space=Math.random()<.08;
-        const f=space?700+Math.random()*400:2500+Math.random()*3000;
-        const amp=space?.35+Math.random()*.2:.15+Math.random()*.25;
-        const cl=Math.floor(sr*(space?.012:.004+Math.random()*.004));
-        for(let j=0;j<cl&&i+j<b.length;j++)
-          b[i+j]+=amp*Math.exp(-j/(cl*.15))*(.5*Math.sin(2*Math.PI*f*j/sr)+.5*(Math.random()*2-1));
-        // Key release
-        const rs=i+Math.floor(sr*(.04+Math.random()*.08)),rl=Math.floor(sr*.003);
-        for(let j=0;j<rl&&rs+j<b.length;j++)
-          b[rs+j]+=amp*.25*Math.exp(-j/(rl*.15))*(Math.random()*2-1);
-      }
-    }
-    norm(b,.5);
+    biquad(b,sr,'lp',200,.7);norm(b,.65);
   },
 };
 
@@ -761,8 +548,9 @@ const gen = {
 let audioCtx=null, masterGain=null, analyser=null;
 let sourceNode=null, sourceGain=null;
 let fadingSource=null, fadingGain=null;
-let isPlaying=false, currentType='brown';
+let isPlaying=false, currentType='brown', loadingType=null;
 const FADE=1.0;
+const bufferCache={};
 
 const playBtn=document.getElementById('playBtn');
 const vol=document.getElementById('volume');
@@ -781,27 +569,64 @@ function initAudio() {
   analyser.connect(audioCtx.destination);
 }
 
-function makeBuffer(type) {
-  const sr=audioCtx.sampleRate, sec=SOUNDS[type].dur;
-  const len=sr*sec, buf=audioCtx.createBuffer(1,len,sr);
-  const d=buf.getChannelData(0);
-  gen[type](d,sr);
-  const fl=Math.floor(sr*.05);
-  for(let i=0;i<fl;i++){const t=i/fl;d[i]=d[i]*t+d[len-fl+i]*(1-t);}
-  return buf;
-}
+// Get or create audio buffer (async for file-based, sync-ish for generated)
+async function getBuffer(type) {
+  const cfg=SOUNDS[type];
 
-function makeSrc(type) {
-  const g=audioCtx.createGain();g.connect(masterGain);
-  const s=audioCtx.createBufferSource();s.buffer=makeBuffer(type);s.loop=true;s.connect(g);s.start();
-  return{s,g};
+  if(cfg.url) {
+    // File-based: fetch, decode, cache
+    if(bufferCache[type]) return bufferCache[type];
+    const resp=await fetch(cfg.url);
+    if(!resp.ok) throw new Error('Failed to load '+type);
+    const arr=await resp.arrayBuffer();
+    const buf=await audioCtx.decodeAudioData(arr);
+    bufferCache[type]=buf;
+    return buf;
+  } else {
+    // Generated: create fresh buffer each time for variety
+    const sr=audioCtx.sampleRate, len=sr*cfg.dur;
+    const buf=audioCtx.createBuffer(1,len,sr);
+    const d=buf.getChannelData(0);
+    gen[type](d,sr);
+    // Crossfade ends for seamless loop
+    const fl=Math.floor(sr*.05);
+    for(let i=0;i<fl;i++){const t=i/fl;d[i]=d[i]*t+d[len-fl+i]*(1-t);}
+    return buf;
+  }
 }
 
 function kill(s,g){if(!s)return;try{s.stop();}catch(e){}s.disconnect();g.disconnect();}
 
-function startNoise(xfade) {
+function setLoading(type,on) {
+  const opt=noiseList.querySelector(`.noise-option[data-type="${type}"]`);
+  if(opt) opt.classList.toggle('loading',on);
+  loadingType=on?type:null;
+}
+
+async function startNoise(xfade) {
   initAudio();
   if(audioCtx.state==='suspended') audioCtx.resume();
+
+  const targetType=currentType;
+  const needsLoad=SOUNDS[targetType].url&&!bufferCache[targetType];
+
+  if(needsLoad) setLoading(targetType,true);
+
+  let buffer;
+  try {
+    buffer=await getBuffer(targetType);
+  } catch(e) {
+    console.error('Failed to load sound:',e);
+    setLoading(targetType,false);
+    return;
+  }
+
+  setLoading(targetType,false);
+
+  // If user switched away while loading, don't play stale sound
+  if(currentType!==targetType) return;
+
+  // Fade out old source
   kill(fadingSource,fadingGain);fadingSource=null;fadingGain=null;
   if(xfade&&sourceNode){
     fadingSource=sourceNode;fadingGain=sourceGain;
@@ -810,9 +635,17 @@ function startNoise(xfade) {
     const fs=fadingSource,fg=fadingGain;
     setTimeout(()=>kill(fs,fg),FADE*1000+50);
   } else { kill(sourceNode,sourceGain); }
-  const{s,g}=makeSrc(currentType);sourceNode=s;sourceGain=g;
-  if(xfade){sourceGain.gain.setValueAtTime(0,audioCtx.currentTime);sourceGain.gain.linearRampToValueAtTime(1,audioCtx.currentTime+FADE);}
-  else sourceGain.gain.value=1;
+
+  // Create and start new source
+  const g=audioCtx.createGain();g.connect(masterGain);
+  const s=audioCtx.createBufferSource();s.buffer=buffer;s.loop=true;s.connect(g);s.start();
+  sourceNode=s;sourceGain=g;
+
+  if(xfade){
+    sourceGain.gain.setValueAtTime(0,audioCtx.currentTime);
+    sourceGain.gain.linearRampToValueAtTime(1,audioCtx.currentTime+FADE);
+  } else { sourceGain.gain.value=1; }
+
   isPlaying=true;
   playBtn.classList.add('playing');playBtn.setAttribute('aria-label','Pause');
   setGlow(true);canvas.classList.add('visible');draw();
@@ -831,22 +664,26 @@ function setGlow(on) {
   if(on){const a=noiseList.querySelector('.noise-option.active');if(a)a.classList.add('glowing');}
 }
 
+// Preload file when user selects a sound (before they hit play)
+function preload(type) {
+  if(!audioCtx||!SOUNDS[type].url||bufferCache[type]) return;
+  getBuffer(type).catch(()=>{});
+}
+
 // ── Waveform ──
 function draw() {
   if(!isPlaying||!analyser) return;
-  const dpr=window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
+  const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;
   if(canvas.width!==w*dpr||canvas.height!==h*dpr){canvas.width=w*dpr;canvas.height=h*dpr;}
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  const bl=analyser.frequencyBinCount, data=new Uint8Array(bl);
+  const bl=analyser.frequencyBinCount,data=new Uint8Array(bl);
   analyser.getByteTimeDomainData(data);
   const c=SOUNDS[currentType].rgb;
   ctx.clearRect(0,0,w,h);
-  // Glow line
   ctx.beginPath();
   const sw=w/(bl-1);
   for(let i=0;i<bl;i++){const y=data[i]/128*h/2;i===0?ctx.moveTo(0,y):ctx.lineTo(i*sw,y);}
   ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},.12)`;ctx.lineWidth=6;ctx.stroke();
-  // Sharp line
   ctx.beginPath();
   for(let i=0;i<bl;i++){const y=data[i]/128*h/2;i===0?ctx.moveTo(0,y):ctx.lineTo(i*sw,y);}
   ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},.55)`;ctx.lineWidth=1.5;ctx.stroke();
@@ -855,9 +692,10 @@ function draw() {
 
 // ── UI ──
 function selectOption(opt) {
-  noiseList.querySelectorAll('.noise-option').forEach(el=>{el.classList.remove('active','glowing');});
+  noiseList.querySelectorAll('.noise-option').forEach(el=>{el.classList.remove('active','glowing','loading');});
   opt.classList.add('active');
   currentType=opt.dataset.type;
+  preload(currentType);
   if(isPlaying){setGlow(true);startNoise(true);}
 }
 
