@@ -562,6 +562,10 @@ const ctx=canvas.getContext('2d');
 function initAudio() {
   if(audioCtx) return;
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  // Play a silent buffer to unlock iOS audio output
+  const unlock=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
+  const src=audioCtx.createBufferSource();
+  src.buffer=unlock;src.connect(audioCtx.destination);src.start();
   analyser=audioCtx.createAnalyser();
   analyser.fftSize=256;
   masterGain=audioCtx.createGain();
@@ -610,7 +614,7 @@ function setLoading(type,on) {
 
 async function startNoise(xfade) {
   initAudio();
-  if(audioCtx.state==='suspended') await audioCtx.resume();
+  if(audioCtx.state==='suspended') audioCtx.resume();
 
   const targetType=currentType;
   const needsLoad=SOUNDS[targetType].url&&!bufferCache[targetType];
