@@ -545,7 +545,7 @@ const gen = {
 };
 
 // ── Audio engine ──
-let audioCtx=null, masterGain=null, analyser=null;
+let audioCtx=null, masterGain=null, volGain=null, analyser=null;
 let sourceNode=null, sourceGain=null;
 let fadingSource=null, fadingGain=null;
 let isPlaying=false, currentType='brown', loadingType=null;
@@ -561,12 +561,16 @@ const ctx=canvas.getContext('2d');
 function initAudio() {
   if(audioCtx) return;
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  masterGain=audioCtx.createGain();
-  masterGain.gain.value=parseFloat(vol.value);
   analyser=audioCtx.createAnalyser();
   analyser.fftSize=256;
+  masterGain=audioCtx.createGain();
+  masterGain.gain.value=1; // full volume for analyser — waveform always sees strong signal
+  // Chain: source → masterGain(1.0) → analyser → volGain(slider) → speakers
+  volGain=audioCtx.createGain();
+  volGain.gain.value=parseFloat(vol.value);
   masterGain.connect(analyser);
-  analyser.connect(audioCtx.destination);
+  analyser.connect(volGain);
+  volGain.connect(audioCtx.destination);
 }
 
 // Get or create audio buffer (async for file-based, sync-ish for generated)
@@ -679,13 +683,21 @@ function draw() {
   const bl=analyser.frequencyBinCount,data=new Uint8Array(bl);
   analyser.getByteTimeDomainData(data);
   const c=SOUNDS[currentType].rgb;
+
+  // Auto-scale: find peak deviation from center (128) and normalize
+  let maxDev=0;
+  for(let i=0;i<bl;i++) maxDev=Math.max(maxDev,Math.abs(data[i]-128));
+  const scale=maxDev>1?60/maxDev:1; // normalize so peak fills ~60% of height
+
   ctx.clearRect(0,0,w,h);
-  ctx.beginPath();
   const sw=w/(bl-1);
-  for(let i=0;i<bl;i++){const y=data[i]/128*h/2;i===0?ctx.moveTo(0,y):ctx.lineTo(i*sw,y);}
-  ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},.12)`;ctx.lineWidth=6;ctx.stroke();
+  // Glow line
   ctx.beginPath();
-  for(let i=0;i<bl;i++){const y=data[i]/128*h/2;i===0?ctx.moveTo(0,y):ctx.lineTo(i*sw,y);}
+  for(let i=0;i<bl;i++){const y=h/2+(data[i]-128)*scale*h/128;i===0?ctx.moveTo(0,y):ctx.lineTo(i*sw,y);}
+  ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},.12)`;ctx.lineWidth=6;ctx.stroke();
+  // Sharp line
+  ctx.beginPath();
+  for(let i=0;i<bl;i++){const y=h/2+(data[i]-128)*scale*h/128;i===0?ctx.moveTo(0,y):ctx.lineTo(i*sw,y);}
   ctx.strokeStyle=`rgba(${c[0]},${c[1]},${c[2]},.55)`;ctx.lineWidth=1.5;ctx.stroke();
   requestAnimationFrame(draw);
 }
@@ -706,7 +718,7 @@ noiseList.addEventListener('click',e=>{
   if(opt) selectOption(opt);
 });
 
-vol.addEventListener('input',()=>{if(masterGain) masterGain.gain.value=parseFloat(vol.value);});
+vol.addEventListener('input',()=>{if(volGain) volGain.gain.value=parseFloat(vol.value);});
 
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT') return;
