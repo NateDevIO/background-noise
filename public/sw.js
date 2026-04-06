@@ -1,8 +1,10 @@
-const CACHE='bg-noise-v1';
+const CACHE='bg-noise-v2';
 const ASSETS=[
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.png',
+  '/apple-touch-icon.png',
   '/icon-192.svg',
   '/icon-512.svg',
   '/sounds/rain.mp3',
