@@ -559,18 +559,27 @@ const noiseList=document.getElementById('noiseList');
 const canvas=document.getElementById('waveform');
 const ctx=canvas.getContext('2d');
 
+function unlockAudio() {
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  // Play silent buffer — required by iOS to actually unlock audio output
+  const b=audioCtx.createBuffer(1,1,22050);
+  const s=audioCtx.createBufferSource();
+  s.buffer=b;s.connect(audioCtx.destination);s.start(0);
+}
+
+// Pre-unlock on first touch (iOS needs touchstart/touchend, not just click)
+['touchstart','touchend','click'].forEach(evt=>{
+  document.addEventListener(evt,function h(){unlockAudio();document.removeEventListener(evt,h,true);},true);
+});
+
 function initAudio() {
-  if(audioCtx) return;
-  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  // Play a silent buffer to unlock iOS audio output
-  const unlock=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
-  const src=audioCtx.createBufferSource();
-  src.buffer=unlock;src.connect(audioCtx.destination);src.start();
+  unlockAudio();
+  if(analyser) return; // chain already built
   analyser=audioCtx.createAnalyser();
   analyser.fftSize=256;
   masterGain=audioCtx.createGain();
-  masterGain.gain.value=1; // full volume for analyser — waveform always sees strong signal
-  // Chain: source → masterGain(1.0) → analyser → volGain(slider) → speakers
+  masterGain.gain.value=1;
   volGain=audioCtx.createGain();
   volGain.gain.value=parseFloat(vol.value);
   masterGain.connect(analyser);
