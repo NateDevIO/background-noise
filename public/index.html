@@ -86,12 +86,12 @@
   }
 
   .category-label {
-    font-size: 0.625rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--text-muted);
     padding: 1.25rem 0.5rem 0.5rem;
-    opacity: 0.5;
+    opacity: 0.7;
     font-weight: 400;
   }
 
@@ -153,23 +153,23 @@
   .info { flex: 1; min-width: 0; text-align: left; }
 
   .name {
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 500;
     letter-spacing: 0.01em;
     margin-bottom: 0.1rem;
   }
 
   .desc {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     font-weight: 300;
     letter-spacing: 0.02em;
   }
 
   .char {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
-    opacity: 0.5;
+    opacity: 0.6;
     font-style: italic;
     font-weight: 300;
     text-align: right;
@@ -233,7 +233,7 @@
   .volume-group { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
 
   .volume-label {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     font-weight: 300;
     letter-spacing: 0.06em;
@@ -274,9 +274,9 @@
   .shortcuts {
     text-align: center;
     margin-top: 1rem;
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
-    opacity: 0.4;
+    opacity: 0.6;
     font-weight: 300;
     letter-spacing: 0.03em;
     padding-bottom: 0.5rem;
@@ -609,7 +609,7 @@ function setLoading(type,on) {
 
 async function startNoise(xfade) {
   initAudio();
-  if(audioCtx.state==='suspended') audioCtx.resume();
+  if(audioCtx.state==='suspended') await audioCtx.resume();
 
   const targetType=currentType;
   const needsLoad=SOUNDS[targetType].url&&!bufferCache[targetType];
@@ -707,8 +707,8 @@ function selectOption(opt) {
   noiseList.querySelectorAll('.noise-option').forEach(el=>{el.classList.remove('active','glowing','loading');});
   opt.classList.add('active');
   currentType=opt.dataset.type;
-  preload(currentType);
   if(isPlaying){setGlow(true);startNoise(true);}
+  else{preload(currentType);startNoise(false);}
 }
 
 playBtn.addEventListener('click',()=>isPlaying?pause():startNoise(false));
