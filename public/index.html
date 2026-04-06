@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Background Noise</title>
+<meta name="description" content="Ambient noise generator for focus, sleep, and relaxation. Brown noise, rain, ocean waves, and more.">
+<meta property="og:title" content="Background Noise">
+<meta property="og:description" content="Ambient noise generator for focus, sleep, and relaxation">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#141419">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/svg+xml" href="icon-192.svg">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -294,6 +305,50 @@
     background: var(--surface);
   }
 
+  .timer-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 0 0.25rem;
+  }
+
+  .timer-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 300;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .timer-options {
+    display: flex;
+    gap: 4px;
+  }
+
+  .timer-btn {
+    font-family: inherit;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .timer-btn:hover { background: var(--surface-hover); color: var(--text); }
+  .timer-btn.active { background: var(--surface-active); color: var(--text); border-color: var(--text-muted); }
+
+  .timer-countdown {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+
   @media (max-width: 480px) {
     h1 { font-size: 1.75rem; }
     .noise-option { padding: 0.7rem 0.875rem; }
@@ -305,7 +360,7 @@
 <div class="container">
   <header>
     <h1>Background Noise</h1>
-    <p>Choose a texture, press play</p>
+    <p>Choose a texture, tap to play</p>
   </header>
 
   <div class="noise-list" id="noiseList">
@@ -442,6 +497,17 @@
         <span class="volume-label">Volume</span>
         <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
       </div>
+    </div>
+    <div class="timer-row">
+      <span class="timer-label">Sleep timer</span>
+      <div class="timer-options" id="timerOptions">
+        <button class="timer-btn" data-min="0">Off</button>
+        <button class="timer-btn" data-min="15">15m</button>
+        <button class="timer-btn" data-min="30">30m</button>
+        <button class="timer-btn" data-min="60">1h</button>
+        <button class="timer-btn" data-min="120">2h</button>
+      </div>
+      <span class="timer-countdown" id="timerCountdown"></span>
     </div>
     <div class="shortcuts">
       <kbd>Space</kbd> play / pause &nbsp;&middot;&nbsp; <kbd>&uarr;</kbd><kbd>&darr;</kbd> switch sound
@@ -719,6 +785,7 @@ function selectOption(opt) {
   noiseList.querySelectorAll('.noise-option').forEach(el=>{el.classList.remove('active','glowing','loading');});
   opt.classList.add('active');
   currentType=opt.dataset.type;
+  try{localStorage.setItem('bg-noise-sound',currentType);}catch(e){}
   if(isPlaying){setGlow(true);startNoise(true);}
   else{preload(currentType);startNoise(false);}
 }
@@ -745,6 +812,51 @@ document.addEventListener('keydown',e=>{
     opts[next].scrollIntoView({block:'nearest',behavior:'smooth'});
   }
 });
+
+// ── Restore last sound ──
+try {
+  const saved=localStorage.getItem('bg-noise-sound');
+  if(saved&&SOUNDS[saved]) {
+    const opt=noiseList.querySelector(`.noise-option[data-type="${saved}"]`);
+    if(opt) {
+      noiseList.querySelectorAll('.noise-option').forEach(el=>el.classList.remove('active'));
+      opt.classList.add('active');
+      currentType=saved;
+    }
+  }
+} catch(e){}
+
+// ── Sleep timer ──
+let sleepTimer=null, sleepEnd=0;
+const timerOptions=document.getElementById('timerOptions');
+const timerCountdown=document.getElementById('timerCountdown');
+
+function setTimer(min) {
+  clearInterval(sleepTimer);sleepTimer=null;
+  timerOptions.querySelectorAll('.timer-btn').forEach(b=>b.classList.remove('active'));
+  timerCountdown.textContent='';
+  if(!min) return;
+  timerOptions.querySelector(`[data-min="${min}"]`).classList.add('active');
+  sleepEnd=Date.now()+min*60000;
+  sleepTimer=setInterval(()=>{
+    const left=Math.max(0,sleepEnd-Date.now());
+    if(left<=0){clearInterval(sleepTimer);sleepTimer=null;timerCountdown.textContent='';
+      timerOptions.querySelectorAll('.timer-btn').forEach(b=>b.classList.remove('active'));
+      if(isPlaying)pause();return;}
+    const m=Math.floor(left/60000),s=Math.floor((left%60000)/1000);
+    timerCountdown.textContent=`${m}:${String(s).padStart(2,'0')}`;
+  },1000);
+}
+
+timerOptions.addEventListener('click',e=>{
+  const btn=e.target.closest('.timer-btn');
+  if(!btn) return;
+  const min=parseInt(btn.dataset.min);
+  setTimer(btn.classList.contains('active')?0:min);
+});
+
+// ── Service worker ──
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 
 </body>
