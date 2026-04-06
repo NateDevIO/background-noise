@@ -547,6 +547,7 @@ const gen = {
 
 // ── Audio engine ──
 let audioCtx=null, masterGain=null, volGain=null, analyser=null;
+let audioOut=null; // <audio> element for iOS media playback
 let sourceNode=null, sourceGain=null;
 let fadingSource=null, fadingGain=null;
 let isPlaying=false, currentType='brown', loadingType=null;
@@ -559,23 +560,10 @@ const noiseList=document.getElementById('noiseList');
 const canvas=document.getElementById('waveform');
 const ctx=canvas.getContext('2d');
 
-function unlockAudio() {
-  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  if(audioCtx.state==='suspended') audioCtx.resume();
-  // Play silent buffer — required by iOS to actually unlock audio output
-  const b=audioCtx.createBuffer(1,1,22050);
-  const s=audioCtx.createBufferSource();
-  s.buffer=b;s.connect(audioCtx.destination);s.start(0);
-}
-
-// Pre-unlock on first touch (iOS needs touchstart/touchend, not just click)
-['touchstart','touchend','click'].forEach(evt=>{
-  document.addEventListener(evt,function h(){unlockAudio();document.removeEventListener(evt,h,true);},true);
-});
-
 function initAudio() {
-  unlockAudio();
-  if(analyser) return; // chain already built
+  if(analyser) return; // already built
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
   analyser=audioCtx.createAnalyser();
   analyser.fftSize=256;
   masterGain=audioCtx.createGain();
@@ -584,7 +572,17 @@ function initAudio() {
   volGain.gain.value=parseFloat(vol.value);
   masterGain.connect(analyser);
   analyser.connect(volGain);
-  volGain.connect(audioCtx.destination);
+  // Route through <audio> element so iOS treats output as media playback
+  // (plays even with mute switch on, like YouTube/Spotify)
+  if(audioCtx.createMediaStreamDestination) {
+    const dest=audioCtx.createMediaStreamDestination();
+    volGain.connect(dest);
+    audioOut=new Audio();
+    audioOut.srcObject=dest.stream;
+    audioOut.play().catch(()=>{});
+  } else {
+    volGain.connect(audioCtx.destination);
+  }
 }
 
 // Get or create audio buffer (async for file-based, sync-ish for generated)
